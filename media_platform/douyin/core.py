@@ -102,7 +102,7 @@ class DouYinCrawler(AbstractCrawler):
 
             utils.logger.info("[DouYinCrawler.start] Douyin Crawler finished ...")
 
-    async def search(self) -> None:
+        async def search(self) -> None:
         utils.logger.info("[DouYinCrawler.search] Begin search douyin keywords")
         dy_limit_count = 10  # douyin limit page fixed value
         if config.CRAWLER_MAX_NOTES_COUNT < dy_limit_count:
@@ -144,6 +144,22 @@ class DouYinCrawler(AbstractCrawler):
                         aweme_info: Dict = (post_item.get("aweme_info") or post_item.get("aweme_mix_info", {}).get("mix_items")[0])
                     except TypeError:
                         continue
+
+                    # 采集视频时长
+                    video_duration = aweme_info.get("video", {}).get("duration")
+                    if video_duration:
+                        aweme_info["video_duration_sec"] = int(video_duration) // 1000
+
+                    # 采集作者粉丝数
+                    author_id = aweme_info.get("author", {}).get("uid")
+                    if author_id:
+                        try:
+                            author_info = await self.dy_client.get_user_info(author_id)
+                            if author_info:
+                                aweme_info["author_follower_count"] = author_info.get("follower_count", 0)
+                        except Exception as e:
+                            aweme_info["author_follower_count"] = None
+
                     aweme_list.append(aweme_info.get("aweme_id", ""))
                     await douyin_store.update_douyin_aweme(aweme_item=aweme_info)
                     await self.get_aweme_media(aweme_item=aweme_info)
